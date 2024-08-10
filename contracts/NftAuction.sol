@@ -40,6 +40,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
     }
 
     function cancelAuction(uint256 auctionId) public nonReentrant {
+        require(auctionId < auctions.length, "wrong auctionId!");
         Auction memory auc = auctions[auctionId];
         require(msg.sender == auc.seller, "only seller can cancel auction!");
         require(auc.status == Status.Active, "only active auction can be cancelled!");
@@ -47,13 +48,13 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
 
         auctions[auctionId].status = Status.Canceled;
         //transfer nft to seller
-        try auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId) {            
+        try auc.token.safeTransferFrom{gas: 5000}(address(this), auc.seller, auc.tokenId) {            
         } catch {
             emit NftTransferError(auc.seller, auc.tokenId);
         }
         //transfer ether to last bidder
         if(auc.lastBidder != address(0)) {
-            (bool success, ) = auc.lastBidder.call{value: auc.lastBidPrice}("");
+            (bool success, ) = auc.lastBidder.call{gas: 5000, value: auc.lastBidPrice}("");
             if(!success) {
                 emit EthTransferError(auc.lastBidder, auc.lastBidPrice);
             }
@@ -61,6 +62,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
     }
 
     function endAuction(uint256 auctionId) public nonReentrant {
+        require(auctionId < auctions.length, "wrong auctionId!");
         Auction memory auc = auctions[auctionId];
         require(auc.status == Status.Active, "only active auction can be ended!");
         require(block.timestamp > auc.endTime, "auction is not over yet!");
@@ -68,18 +70,18 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         auctions[auctionId].status = Status.Ended;
         if(auc.lastBidder != address(0)) {
             //transfer nft to last bidder
-            try auc.token.safeTransferFrom(address(this), auc.lastBidder, auc.tokenId) {
+            try auc.token.safeTransferFrom{gas: 5000}(address(this), auc.lastBidder, auc.tokenId) {
             } catch {
                 emit NftTransferError(auc.lastBidder, auc.tokenId);
             }
             //transfer ether to seller
-            (bool success, ) = auc.seller.call{value: auc.lastBidPrice}("");
+            (bool success, ) = auc.seller.call{gas: 5000, value: auc.lastBidPrice}("");
             if(!success) {
                 emit EthTransferError(auc.seller, auc.lastBidPrice);
             }
         } else {
             //no bidder, transfer nft to seller
-            try auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId) {
+            try auc.token.safeTransferFrom{gas: 5000}(address(this), auc.seller, auc.tokenId) {
             } catch {
                 emit NftTransferError(auc.seller, auc.tokenId);
             }
@@ -89,6 +91,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
     //bidPrice in wei
     function bid(uint256 auctionId, uint256 bidPrice) public payable nonReentrant {
         require(bidPrice == msg.value, "bid price not same as msg.value!");
+        require(auctionId < auctions.length, "wrong auctionId!");
         Auction memory auc = auctions[auctionId];
         require(auc.status == Status.Active, "can only bid on active auction!");
         require(block.timestamp >= auc.startTime && block.timestamp <= auc.endTime, "can only bid during auction time!");
@@ -96,7 +99,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         if(auc.lastBidder != address(0)) {
             require(msg.value >= auc.lastBidPrice + auc.minBidDiff, "bid price must be greater than (last bid price)+(min bid diff)!");
             //send last bid price to last bidder
-            (bool success, ) = auc.lastBidder.call{value: auc.lastBidPrice}("");
+            (bool success, ) = auc.lastBidder.call{gas: 5000, value: auc.lastBidPrice}("");
             if(!success) {
                 emit EthTransferError(auc.lastBidder, auc.lastBidPrice);
             }
