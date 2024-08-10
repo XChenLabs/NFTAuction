@@ -48,7 +48,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
 
         auctions[auctionId].status = Status.Canceled;
         //transfer nft to seller
-        try auc.token.safeTransferFrom{gas: 5000}(address(this), auc.seller, auc.tokenId) {            
+        try auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId) {            
         } catch {
             emit NftTransferError(auc.seller, auc.tokenId);
         }
@@ -70,7 +70,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         auctions[auctionId].status = Status.Ended;
         if(auc.lastBidder != address(0)) {
             //transfer nft to last bidder
-            try auc.token.safeTransferFrom{gas: 5000}(address(this), auc.lastBidder, auc.tokenId) {
+            try auc.token.safeTransferFrom(address(this), auc.lastBidder, auc.tokenId) {
             } catch {
                 emit NftTransferError(auc.lastBidder, auc.tokenId);
             }
@@ -81,7 +81,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
             }
         } else {
             //no bidder, transfer nft to seller
-            try auc.token.safeTransferFrom{gas: 5000}(address(this), auc.seller, auc.tokenId) {
+            try auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId) {
             } catch {
                 emit NftTransferError(auc.seller, auc.tokenId);
             }
