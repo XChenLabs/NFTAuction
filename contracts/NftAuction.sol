@@ -73,6 +73,9 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
     function bid(uint256 auctionId, uint256 bidPrice) public payable nonReentrant {
         require(bidPrice == msg.value, "bid price not same as msg.value!");
         Auction memory auc = auctions[auctionId];
+        require(auc.status == Status.Active, "can only bid on active auction!");
+        require(block.timestamp >= auc.startTime && block.timestamp <= auc.endTime, "can only bid during auction time!");
+
         if(auc.lastBidder != address(0)) {
             require(msg.value >= auc.lastBidPrice + auc.minBidDiff, "bid price must be greater than (last bid price)+(min bid diff)!");
             //send last bid price to last bidder
