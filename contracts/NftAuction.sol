@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 
 contract NftAuction is ReentrancyGuard, ERC721Holder {
     enum Status {
@@ -26,6 +25,9 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         Status status;
     }
 
+    event NftTransferError(address destAddr, uint256 tokenId);
+    event EthTransferError(address destAddr, uint256 tokenAmount);
+
     Auction[] public auctions;
 
     //startPrice in wei, startDelay/duration in second
@@ -45,10 +47,16 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
 
         auctions[auctionId].status = Status.Canceled;
         //transfer nft to seller
-        auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId);
+        try auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId) {            
+        } catch {
+            emit NftTransferError(auc.seller, auc.tokenId);
+        }
         //transfer ether to last bidder
         if(auc.lastBidder != address(0)) {
-            Address.sendValue(payable(auc.lastBidder), auc.lastBidPrice);
+            (bool success, ) = auc.lastBidder.call{value: auc.lastBidPrice}("");
+            if(!success) {
+                emit EthTransferError(auc.lastBidder, auc.lastBidPrice);
+            }
         }
     }
 
@@ -60,12 +68,21 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         auctions[auctionId].status = Status.Ended;
         if(auc.lastBidder != address(0)) {
             //transfer nft to last bidder
-            auc.token.safeTransferFrom(address(this), auc.lastBidder, auc.tokenId);
+            try auc.token.safeTransferFrom(address(this), auc.lastBidder, auc.tokenId) {
+            } catch {
+                emit NftTransferError(auc.lastBidder, auc.tokenId);
+            }
             //transfer ether to seller
-            Address.sendValue(payable(auc.seller), auc.lastBidPrice);
+            (bool success, ) = auc.seller.call{value: auc.lastBidPrice}("");
+            if(!success) {
+                emit EthTransferError(auc.seller, auc.lastBidPrice);
+            }
         } else {
             //no bidder, transfer nft to seller
-            auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId);
+            try auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId) {
+            } catch {
+                emit NftTransferError(auc.seller, auc.tokenId);
+            }
         }
     }
 
@@ -79,7 +96,10 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         if(auc.lastBidder != address(0)) {
             require(msg.value >= auc.lastBidPrice + auc.minBidDiff, "bid price must be greater than (last bid price)+(min bid diff)!");
             //send last bid price to last bidder
-            Address.sendValue(payable(auc.lastBidder), auc.lastBidPrice);
+            (bool success, ) = auc.lastBidder.call{value: auc.lastBidPrice}("");
+            if(!success) {
+                emit EthTransferError(auc.lastBidder, auc.lastBidPrice);
+            }
         } else {
             require(msg.value >= auc.startPrice, "bid price must be greater than start price!");
         }
