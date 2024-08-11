@@ -32,6 +32,15 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         bool withdrawed;
     }
 
+    event NewAuction(uint256 indexed auctionId, address indexed seller, IERC721 indexed token, uint256 tokenId, 
+    uint256 startPrice, uint256 minBidDiff, uint256 startTime, uint256 endTime);
+    event AuctionCanclled(uint256 indexed auctionId);
+    event AuctionEnded(uint256 indexed auctionId);
+    event NftClaimed(uint256 indexed auctionId, address indexed destAddr, IERC721 indexed token, uint256 tokenId);
+    event EthClaimed(uint256 indexed auctionId, address indexed destAddr, uint256 amount);
+    event NewBid(uint256 indexed auctionId, uint256 indexed bidId, address indexed bidder, uint256 bidPrice);
+    event BidWithdrawed(uint256 indexed auctionId, uint256 indexed bidId);
+
     Auction[] public auctions;
     mapping(uint256 => Bid[]) public bids;
 
@@ -45,6 +54,8 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         uint256 duration
     ) public nonReentrant returns (uint256) {
         token.safeTransferFrom(msg.sender, address(this), tokenId);
+        uint256 startTime = block.timestamp + startDelay;
+        uint256 endTime = block.timestamp + startDelay + duration;
         auctions.push(
             Auction(
                 msg.sender,
@@ -52,14 +63,16 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
                 tokenId,
                 startPrice,
                 minBidDiff,
-                block.timestamp + startDelay,
-                block.timestamp + startDelay + duration,
+                startTime,
+                endTime,
                 type(uint256).max,
                 Status.Active,
                 false
             )
         );
-        return auctions.length - 1;
+        uint256 auctionId = auctions.length - 1;
+        emit NewAuction(auctionId, msg.sender, token, tokenId, startPrice, minBidDiff, startTime, endTime);
+        return auctionId;
     }
 
     function cancelAuction(uint256 auctionId) public {
@@ -76,6 +89,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         );
 
         auctions[auctionId].status = Status.Canceled;
+        emit AuctionCanclled(auctionId);
     }
 
     function endAuction(uint256 auctionId) public {
@@ -88,6 +102,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         require(block.timestamp > auc.endTime, "auction is not over yet!");
 
         auctions[auctionId].status = Status.Ended;
+        emit AuctionEnded(auctionId);
     }
 
     function claimNft(uint256 auctionId) public nonReentrant {
@@ -110,9 +125,11 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
                 highestBidder,
                 auc.tokenId
             );
+            emit NftClaimed(auctionId, highestBidder, auc.token, auc.tokenId);
         } else {
             //transfer nft to seller
             auc.token.safeTransferFrom(address(this), auc.seller, auc.tokenId);
+            emit NftClaimed(auctionId, auc.seller, auc.token, auc.tokenId);
         }
     }
 
@@ -134,9 +151,11 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         if (auc.status == Status.Canceled) {
             //transfer eth to bidder
             Address.sendValue(payable(highestBid.bidder), highestBid.amount);
+            emit EthClaimed(auctionId, highestBid.bidder, highestBid.amount);
         } else {
             //transfer eth to seller
             Address.sendValue(payable(auc.seller), highestBid.amount);
+            emit EthClaimed(auctionId, auc.seller, highestBid.amount);
         }
     }
 
@@ -170,6 +189,7 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         bids[auctionId].push(Bid(msg.sender, msg.value, false));
         uint256 bidId = bids[auctionId].length - 1;
         auctions[auctionId].highestBidId = bidId;
+        emit NewBid(auctionId, bidId, msg.sender, bidPrice);
         return bidId;
     }
 
@@ -188,5 +208,6 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         bids[auctionId][bidId].withdrawed = true;
         //transfer eth to bidder
         Address.sendValue(payable(bid.bidder), bid.amount);
+        emit BidWithdrawed(auctionId, bidId);
     }
 }
