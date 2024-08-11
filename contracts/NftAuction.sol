@@ -32,13 +32,35 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
         bool withdrawed;
     }
 
-    event NewAuction(uint256 indexed auctionId, address indexed seller, IERC721 indexed token, uint256 tokenId, 
-    uint256 startPrice, uint256 minBidDiff, uint256 startTime, uint256 endTime);
+    event NewAuction(
+        uint256 indexed auctionId,
+        address indexed seller,
+        IERC721 indexed token,
+        uint256 tokenId,
+        uint256 startPrice,
+        uint256 minBidDiff,
+        uint256 startTime,
+        uint256 endTime
+    );
     event AuctionCanclled(uint256 indexed auctionId);
     event AuctionEnded(uint256 indexed auctionId);
-    event NftClaimed(uint256 indexed auctionId, address indexed destAddr, IERC721 indexed token, uint256 tokenId);
-    event EthClaimed(uint256 indexed auctionId, address indexed destAddr, uint256 amount);
-    event NewBid(uint256 indexed auctionId, uint256 indexed bidId, address indexed bidder, uint256 bidPrice);
+    event NftClaimed(
+        uint256 indexed auctionId,
+        address indexed destAddr,
+        IERC721 indexed token,
+        uint256 tokenId
+    );
+    event EthClaimed(
+        uint256 indexed auctionId,
+        address indexed destAddr,
+        uint256 amount
+    );
+    event NewBid(
+        uint256 indexed auctionId,
+        uint256 indexed bidId,
+        address indexed bidder,
+        uint256 bidPrice
+    );
     event BidWithdrawed(uint256 indexed auctionId, uint256 indexed bidId);
 
     Auction[] public auctions;
@@ -71,7 +93,16 @@ contract NftAuction is ReentrancyGuard, ERC721Holder {
             )
         );
         uint256 auctionId = auctions.length - 1;
-        emit NewAuction(auctionId, msg.sender, token, tokenId, startPrice, minBidDiff, startTime, endTime);
+        emit NewAuction(
+            auctionId,
+            msg.sender,
+            token,
+            tokenId,
+            startPrice,
+            minBidDiff,
+            startTime,
+            endTime
+        );
         return auctionId;
     }
 
